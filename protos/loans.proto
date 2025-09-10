@@ -1,0 +1,30 @@
+syntax = "proto3";
+package library;
+
+option go_package = ".;pb";
+
+import "protos/users.proto";
+import "protos/books.proto";
+
+service LoanService {
+  rpc BorrowBook(BorrowRequest) returns (LoanResponse) {}
+  rpc ReturnBook(ReturnRequest) returns (LoanResponse) {}
+}
+
+message BorrowRequest {
+  string user_id = 1;
+  string book_id = 2;
+}
+
+message ReturnRequest {
+  string loan_id = 1;
+}
+
+message LoanResponse {
+  string id = 1;
+  library.UserResponse user = 2;
+  library.BookResponse book = 3;
+  string borrowed_date = 4; // Формат: RFC3339 "2006-01-02T15:04:05Z07:00"
+  string due_date = 5;
+  string returned_date = 6;
+}
