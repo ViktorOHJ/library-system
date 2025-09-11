@@ -3,8 +3,8 @@ package library;
 
 option go_package = ".;pb";
 
-import "protos/users.proto";
-import "protos/books.proto";
+import "users.proto";
+import "books.proto";
 
 service LoanService {
   rpc BorrowBook(BorrowRequest) returns (LoanResponse) {}

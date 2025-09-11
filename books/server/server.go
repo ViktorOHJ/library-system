@@ -45,10 +45,8 @@ func (s *BooksServer) GetBook(parentCtx context.Context, req *pb.GetBookRequest)
 	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	defer cancel()
 
-	res = &pb.BookResponse{}
-
 	if req == nil {
-		s.logger.Error("GeBook called with nil request")
+		s.logger.Error("GetBook called with nil request")
 		return nil, status.Error(codes.InvalidArgument, "request cannot be nil")
 	}
 	if req.BookId == "" {
@@ -61,39 +59,23 @@ func (s *BooksServer) GetBook(parentCtx context.Context, req *pb.GetBookRequest)
 		s.logger.Errorf("Invalid BookId format: %v", err)
 		return nil, status.Error(codes.InvalidArgument, "Invalid BookId format")
 	}
-	tx, err := s.db.Begin(ctx)
-	if err != nil {
-		s.logger.Errorf("Error Of begining tx: %v", err)
-		return nil, status.Errorf(codes.Internal, "Server Error")
-	}
-	row := tx.QueryRow(ctx, "SELECT * FROM books WHERE id=$1", id)
 
+	res = &pb.BookResponse{}
+	row := s.db.QueryRow(ctx, "SELECT id, title, author, published_year, is_available FROM books WHERE id=$1", id)
 	err = row.Scan(&res.Id, &res.Title, &res.Author, &res.Year, &res.Available)
 	if err != nil {
 		s.logger.Errorf("Failed to get book: %v", err)
-		tx.Rollback(ctx)
 		return nil, err
-	}
-	err = s.UpdateBookStatus(ctx, res.Id)
-	if err != nil {
-		s.logger.Errorf("Error of Update status: %v", err)
-		tx.Rollback(ctx)
-		return nil, status.Errorf(codes.Internal, "Server Error")
-	}
-	err = tx.Commit(ctx)
-	if err != nil {
-		s.logger.Errorf("Error of commit tx: %v", err)
-		return nil, status.Error(codes.Internal, "Server Error")
 	}
 	return res, nil
 }
 
-func (s *BooksServer) UpdateBookStatus(ctx context.Context, id string) error {
+func (s *BooksServer) UpdateBookStatus(ctx context.Context, req *pb.UpdateBookRequest) (res *pb.BookResponse, err error) {
 	s.logger.Info("updateBookStatus called")
-	_, err := s.db.Exec(ctx, `UPDATE books SET is_available = NOT is_available WHERE id = $1;`, id)
+	_, err = s.db.Exec(ctx, `UPDATE books SET is_available = NOT is_available WHERE id = $1;`, req.BookId)
 	if err != nil {
 		s.logger.Errorf("Database error: %v", err)
-		return status.Error(codes.Internal, "internal server error")
+		return nil, status.Error(codes.Internal, "internal server error")
 	}
-	return nil
+	return &pb.BookResponse{}, nil
 }

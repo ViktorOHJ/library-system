@@ -47,8 +47,19 @@ func (c *BookClient) Get(ctx context.Context, id string) (*pb.BookResponse, erro
 	if id == "" {
 		return nil, grpc.Errorf(codes.InvalidArgument, "UserId cannot be empty")
 	}
-	logrus.Infof("GetUser called with UserId: %s", id)
+	logrus.Infof("GetBook called with BookId: %s", id)
 	return c.client.GetBook(ctx, &pb.GetBookRequest{
+		BookId: id,
+	})
+}
+
+func (c *BookClient) Update(ctx context.Context, id string) (*pb.BookResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+	if id == "" {
+		return nil, grpc.Errorf(codes.InvalidArgument, "BookId cannot be empty")
+	}
+	return c.client.UpdateBookStatus(ctx, &pb.UpdateBookRequest{
 		BookId: id,
 	})
 }

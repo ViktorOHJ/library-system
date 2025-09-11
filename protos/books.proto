@@ -6,6 +6,11 @@ option go_package = ".;pb";
 service BookService {
   rpc GetBook(GetBookRequest) returns (BookResponse) {}
   rpc CreateBook(CreateBookRequest) returns (BookResponse) {}
+  rpc UpdateBookStatus(UpdateBookRequest) returns (BookResponse) {}
+}
+
+message UpdateBookRequest {
+  string book_id =1;
 }
 
 message GetBookRequest {

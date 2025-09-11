@@ -3,11 +3,12 @@ package loansserver
 import (
 	"context"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/ViktorOHJ/library-system/loans/clients"
-	"github.com/ViktorOHJ/library-system/loans/rabbit"
 	"github.com/ViktorOHJ/library-system/protos/pb"
+	"github.com/ViktorOHJ/library-system/rabbit"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -40,7 +41,7 @@ func (s *LoansServer) BorrowBook(parentCtx context.Context, req *pb.BorrowReques
 		return nil, status.Errorf(codes.Internal, "failed to get user: %v", err)
 	}
 
-	bookClient, err := clients.GetBookClient()
+	bookClient, err := clients.GetBookClient(s.logger)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create book client: %v", err)
 	}
@@ -53,11 +54,18 @@ func (s *LoansServer) BorrowBook(parentCtx context.Context, req *pb.BorrowReques
 	if !book.Available {
 		return nil, status.Error(codes.InvalidArgument, "book is not available")
 	}
-	id, err := s.db.Exec(ctx, `INSERT INTO loans (user_id, book_id, loan_date, return_date) VALUES ($1, $2, $3, $4) RETURNING id`,
-		req.UserId, req.BookId, time.Now(), time.Now().AddDate(0, 0, 14))
+	var loanID int
+	err = s.db.QueryRow(ctx,
+		`INSERT INTO loans (user_id, book_id, loan_date, return_date)
+         VALUES ($1, $2, $3, $4) RETURNING id`,
+		req.UserId, req.BookId, time.Now(), time.Now().AddDate(0, 0, 14)).Scan(&loanID)
 	if err != nil {
 		s.logger.Errorf("Database error: %v", err)
 		return nil, status.Error(codes.Internal, "internal server error")
+	}
+	_, err = bookClient.Update(ctx, req.BookId)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "server error")
 	}
 	message := rabbit.TaskMessage{
 		Type:   "Borrow",
@@ -70,18 +78,28 @@ func (s *LoansServer) BorrowBook(parentCtx context.Context, req *pb.BorrowReques
 		s.logger.Errorf("RabbirMQ error: %v", err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
+	notiCL, err := clients.GetNotificationsClient(s.logger)
+	if err != nil {
+		s.logger.Errorf("Error create noti cliet:%v", err)
+		return nil, status.Error(codes.Internal, "Server Error")
+	}
+	nRes, err := notiCL.Send(ctx, req.UserId, "Borrowing", "borrow_queue")
+	if err != nil {
+		s.logger.Errorf("Error send notifications: %v", err)
+		return nil, status.Error(codes.Internal, "Server Error")
+	}
+	s.logger.Infof("send succes: %v", nRes)
 	return &pb.LoanResponse{
-		Id:           id.String(),
+		Id:           strconv.Itoa(loanID),
 		User:         user,
 		Book:         book,
 		BorrowedDate: time.Now().Format(time.RFC3339),
 		DueDate:      time.Now().AddDate(0, 0, 14).Format(time.RFC3339),
-		ReturnedDate: time.Now().AddDate(0, 0, 14).Format(time.RFC3339),
 	}, nil
 }
 
 func (s *LoansServer) ReturnBook(parentCtx context.Context, req *pb.ReturnRequest) (res *pb.LoanResponse, err error) {
-	bookClient, err := clients.GetBookClient()
+	bookClient, err := clients.GetBookClient(s.logger)
 	if err != nil {
 		s.logger.Errorf("ERROR returnbook creating bookclient: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to create book client: %v", err)
@@ -118,31 +136,25 @@ func (s *LoansServer) ReturnBook(parentCtx context.Context, req *pb.ReturnReques
 		return nil, status.Error(codes.Internal, "Server Error")
 	}
 
-	book, err := bookClient.Get(ctx, bookID)
-	if err != nil {
-		s.logger.Errorf("Error of get book: %v", err)
-		tx.Rollback(ctx)
-		return nil, status.Error(codes.Internal, "Server Error")
+	statusReq := &pb.UpdateBookRequest{
+		BookId: bookID,
 	}
-	s.logger.Info("getbook ok")
-	if book.Available {
-		if err != nil {
-			s.logger.Errorf("1 Error commit tx: %v", err)
-			tx.Rollback(ctx)
-			return nil, status.Error(codes.Internal, "Server Error")
-		} else {
-			s.logger.Errorf("Book is not available for return: %v", bookID)
-			tx.Rollback(ctx)
-			return nil, status.Error(codes.InvalidArgument, "book is not available for return")
-		}
-	}
-	s.logger.Info("update ok")
+	_, err = bookClient.Update(ctx, statusReq.BookId)
 	err = tx.Commit(ctx)
 	if err != nil {
 		s.logger.Errorf("commit tx: %v", err)
 		return nil, status.Error(codes.Internal, "Server Error")
 	}
 	user, err := userclient.Get(ctx, userID)
+	if err != nil {
+		s.logger.Errorf("Error getting user: %v", err)
+		return nil, status.Error(codes.Internal, "Server Error")
+	}
+	book, err := bookClient.Get(ctx, bookID)
+	if err != nil {
+		s.logger.Errorf("Error getting book: %v", err)
+		return nil, status.Error(codes.Internal, "Server Error")
+	}
 	message := rabbit.TaskMessage{
 		Type:   "Return",
 		UserID: userID,
@@ -155,6 +167,23 @@ func (s *LoansServer) ReturnBook(parentCtx context.Context, req *pb.ReturnReques
 		return nil, status.Error(codes.Internal, "Server Error")
 	}
 	s.logger.Info("publish ok")
+	notiCL, err := clients.GetNotificationsClient(s.logger)
+	if err != nil {
+		s.logger.Errorf("Error create noti cliet:%v", err)
+		return nil, status.Error(codes.Internal, "Server Error")
+	}
+	nRes, err := notiCL.Send(ctx, userID, "Returning", "return_queue")
+	if err != nil {
+		s.logger.Errorf("Error send notifications: %v", err)
+		return nil, status.Error(codes.Internal, "Server Error")
+	}
+	s.logger.Infof("send succes: %v", nRes)
+	res = &pb.LoanResponse{
+		Id:           req.LoanId,
+		User:         user,
+		Book:         book,
+		ReturnedDate: time.Now().Format(time.RFC3339),
+	}
 	return res, nil
 }
 

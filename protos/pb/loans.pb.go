@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.7
 // 	protoc        v6.32.0
-// source: protos/loans.proto
+// source: loans.proto
 
 package pb
 
@@ -31,7 +31,7 @@ type BorrowRequest struct {
 
 func (x *BorrowRequest) Reset() {
 	*x = BorrowRequest{}
-	mi := &file_protos_loans_proto_msgTypes[0]
+	mi := &file_loans_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43,7 +43,7 @@ func (x *BorrowRequest) String() string {
 func (*BorrowRequest) ProtoMessage() {}
 
 func (x *BorrowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_protos_loans_proto_msgTypes[0]
+	mi := &file_loans_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -56,7 +56,7 @@ func (x *BorrowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BorrowRequest.ProtoReflect.Descriptor instead.
 func (*BorrowRequest) Descriptor() ([]byte, []int) {
-	return file_protos_loans_proto_rawDescGZIP(), []int{0}
+	return file_loans_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *BorrowRequest) GetUserId() string {
@@ -82,7 +82,7 @@ type ReturnRequest struct {
 
 func (x *ReturnRequest) Reset() {
 	*x = ReturnRequest{}
-	mi := &file_protos_loans_proto_msgTypes[1]
+	mi := &file_loans_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -94,7 +94,7 @@ func (x *ReturnRequest) String() string {
 func (*ReturnRequest) ProtoMessage() {}
 
 func (x *ReturnRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_protos_loans_proto_msgTypes[1]
+	mi := &file_loans_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -107,7 +107,7 @@ func (x *ReturnRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReturnRequest.ProtoReflect.Descriptor instead.
 func (*ReturnRequest) Descriptor() ([]byte, []int) {
-	return file_protos_loans_proto_rawDescGZIP(), []int{1}
+	return file_loans_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ReturnRequest) GetLoanId() string {
@@ -131,7 +131,7 @@ type LoanResponse struct {
 
 func (x *LoanResponse) Reset() {
 	*x = LoanResponse{}
-	mi := &file_protos_loans_proto_msgTypes[2]
+	mi := &file_loans_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -143,7 +143,7 @@ func (x *LoanResponse) String() string {
 func (*LoanResponse) ProtoMessage() {}
 
 func (x *LoanResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_protos_loans_proto_msgTypes[2]
+	mi := &file_loans_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -156,7 +156,7 @@ func (x *LoanResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoanResponse.ProtoReflect.Descriptor instead.
 func (*LoanResponse) Descriptor() ([]byte, []int) {
-	return file_protos_loans_proto_rawDescGZIP(), []int{2}
+	return file_loans_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *LoanResponse) GetId() string {
@@ -201,11 +201,11 @@ func (x *LoanResponse) GetReturnedDate() string {
 	return ""
 }
 
-var File_protos_loans_proto protoreflect.FileDescriptor
+var File_loans_proto protoreflect.FileDescriptor
 
-const file_protos_loans_proto_rawDesc = "" +
+const file_loans_proto_rawDesc = "" +
 	"\n" +
-	"\x12protos/loans.proto\x12\alibrary\x1a\x12protos/users.proto\x1a\x12protos/books.proto\"A\n" +
+	"\vloans.proto\x12\alibrary\x1a\vusers.proto\x1a\vbooks.proto\"A\n" +
 	"\rBorrowRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
 	"\abook_id\x18\x02 \x01(\tR\x06bookId\"(\n" +
@@ -225,26 +225,26 @@ const file_protos_loans_proto_rawDesc = "" +
 	"ReturnBook\x12\x16.library.ReturnRequest\x1a\x15.library.LoanResponse\"\x00B\x06Z\x04.;pbb\x06proto3"
 
 var (
-	file_protos_loans_proto_rawDescOnce sync.Once
-	file_protos_loans_proto_rawDescData []byte
+	file_loans_proto_rawDescOnce sync.Once
+	file_loans_proto_rawDescData []byte
 )
 
-func file_protos_loans_proto_rawDescGZIP() []byte {
-	file_protos_loans_proto_rawDescOnce.Do(func() {
-		file_protos_loans_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_protos_loans_proto_rawDesc), len(file_protos_loans_proto_rawDesc)))
+func file_loans_proto_rawDescGZIP() []byte {
+	file_loans_proto_rawDescOnce.Do(func() {
+		file_loans_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_loans_proto_rawDesc), len(file_loans_proto_rawDesc)))
 	})
-	return file_protos_loans_proto_rawDescData
+	return file_loans_proto_rawDescData
 }
 
-var file_protos_loans_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
-var file_protos_loans_proto_goTypes = []any{
+var file_loans_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_loans_proto_goTypes = []any{
 	(*BorrowRequest)(nil), // 0: library.BorrowRequest
 	(*ReturnRequest)(nil), // 1: library.ReturnRequest
 	(*LoanResponse)(nil),  // 2: library.LoanResponse
 	(*UserResponse)(nil),  // 3: library.UserResponse
 	(*BookResponse)(nil),  // 4: library.BookResponse
 }
-var file_protos_loans_proto_depIdxs = []int32{
+var file_loans_proto_depIdxs = []int32{
 	3, // 0: library.LoanResponse.user:type_name -> library.UserResponse
 	4, // 1: library.LoanResponse.book:type_name -> library.BookResponse
 	0, // 2: library.LoanService.BorrowBook:input_type -> library.BorrowRequest
@@ -258,28 +258,28 @@ var file_protos_loans_proto_depIdxs = []int32{
 	0, // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_protos_loans_proto_init() }
-func file_protos_loans_proto_init() {
-	if File_protos_loans_proto != nil {
+func init() { file_loans_proto_init() }
+func file_loans_proto_init() {
+	if File_loans_proto != nil {
 		return
 	}
-	file_protos_users_proto_init()
-	file_protos_books_proto_init()
+	file_users_proto_init()
+	file_books_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_protos_loans_proto_rawDesc), len(file_protos_loans_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loans_proto_rawDesc), len(file_loans_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_protos_loans_proto_goTypes,
-		DependencyIndexes: file_protos_loans_proto_depIdxs,
-		MessageInfos:      file_protos_loans_proto_msgTypes,
+		GoTypes:           file_loans_proto_goTypes,
+		DependencyIndexes: file_loans_proto_depIdxs,
+		MessageInfos:      file_loans_proto_msgTypes,
 	}.Build()
-	File_protos_loans_proto = out.File
-	file_protos_loans_proto_goTypes = nil
-	file_protos_loans_proto_depIdxs = nil
+	File_loans_proto = out.File
+	file_loans_proto_goTypes = nil
+	file_loans_proto_depIdxs = nil
 }

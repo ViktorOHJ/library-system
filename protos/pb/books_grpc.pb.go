@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v6.32.0
-// source: protos/books.proto
+// source: books.proto
 
 package pb
 
@@ -19,8 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	BookService_GetBook_FullMethodName    = "/library.BookService/GetBook"
-	BookService_CreateBook_FullMethodName = "/library.BookService/CreateBook"
+	BookService_GetBook_FullMethodName          = "/library.BookService/GetBook"
+	BookService_CreateBook_FullMethodName       = "/library.BookService/CreateBook"
+	BookService_UpdateBookStatus_FullMethodName = "/library.BookService/UpdateBookStatus"
 )
 
 // BookServiceClient is the client API for BookService service.
@@ -29,6 +30,7 @@ const (
 type BookServiceClient interface {
 	GetBook(ctx context.Context, in *GetBookRequest, opts ...grpc.CallOption) (*BookResponse, error)
 	CreateBook(ctx context.Context, in *CreateBookRequest, opts ...grpc.CallOption) (*BookResponse, error)
+	UpdateBookStatus(ctx context.Context, in *UpdateBookRequest, opts ...grpc.CallOption) (*BookResponse, error)
 }
 
 type bookServiceClient struct {
@@ -59,12 +61,23 @@ func (c *bookServiceClient) CreateBook(ctx context.Context, in *CreateBookReques
 	return out, nil
 }
 
+func (c *bookServiceClient) UpdateBookStatus(ctx context.Context, in *UpdateBookRequest, opts ...grpc.CallOption) (*BookResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BookResponse)
+	err := c.cc.Invoke(ctx, BookService_UpdateBookStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BookServiceServer is the server API for BookService service.
 // All implementations must embed UnimplementedBookServiceServer
 // for forward compatibility.
 type BookServiceServer interface {
 	GetBook(context.Context, *GetBookRequest) (*BookResponse, error)
 	CreateBook(context.Context, *CreateBookRequest) (*BookResponse, error)
+	UpdateBookStatus(context.Context, *UpdateBookRequest) (*BookResponse, error)
 	mustEmbedUnimplementedBookServiceServer()
 }
 
@@ -80,6 +93,9 @@ func (UnimplementedBookServiceServer) GetBook(context.Context, *GetBookRequest) 
 }
 func (UnimplementedBookServiceServer) CreateBook(context.Context, *CreateBookRequest) (*BookResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateBook not implemented")
+}
+func (UnimplementedBookServiceServer) UpdateBookStatus(context.Context, *UpdateBookRequest) (*BookResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateBookStatus not implemented")
 }
 func (UnimplementedBookServiceServer) mustEmbedUnimplementedBookServiceServer() {}
 func (UnimplementedBookServiceServer) testEmbeddedByValue()                     {}
@@ -138,6 +154,24 @@ func _BookService_CreateBook_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BookService_UpdateBookStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateBookRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BookServiceServer).UpdateBookStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BookService_UpdateBookStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BookServiceServer).UpdateBookStatus(ctx, req.(*UpdateBookRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BookService_ServiceDesc is the grpc.ServiceDesc for BookService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -153,7 +187,11 @@ var BookService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "CreateBook",
 			Handler:    _BookService_CreateBook_Handler,
 		},
+		{
+			MethodName: "UpdateBookStatus",
+			Handler:    _BookService_UpdateBookStatus_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "protos/books.proto",
+	Metadata: "books.proto",
 }

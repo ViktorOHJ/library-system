@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v6.32.0
-// source: protos/loans.proto
+// source: loans.proto
 
 package pb
 
@@ -155,5 +155,5 @@ var LoanService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "protos/loans.proto",
+	Metadata: "loans.proto",
 }
