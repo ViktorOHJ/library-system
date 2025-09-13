@@ -2,14 +2,15 @@ package notificserver
 
 import (
 	"context"
+	"fmt"
 	"os"
-	"time"
 
 	"github.com/ViktorOHJ/library-system/protos/pb"
 	"github.com/ViktorOHJ/library-system/rabbit"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"gopkg.in/gomail.v2"
 )
 
 type NotificServer struct {
@@ -41,7 +42,10 @@ func (s *NotificServer) SendNotification(ctx context.Context, req *pb.Notificati
 	}
 	for msg := range msgs {
 		s.logger.Infof("Received: %s", msg.Body)
-		time.Sleep(3 * time.Second)
+		err = emailsend(req.NotificationType)
+		if err != nil {
+			s.logger.Fatalf("Error: %v", err)
+		}
 		msg.Ack(false)
 
 	}
@@ -49,5 +53,29 @@ func (s *NotificServer) SendNotification(ctx context.Context, req *pb.Notificati
 		Success: true,
 		Message: "OK",
 	}, nil
+}
 
+func emailsend(nType string) error {
+	m := gomail.NewMessage()
+	m.SetHeader("From", "blackwinter470@gmail.com")
+	m.SetHeader("To", "victor.kohler11@gmail.com")
+	m.SetHeader("Subject", "Письмо через gomail")
+	switch {
+	case nType == "borrow_queue":
+		m.SetBody("text/html", `
+        <h1>Привет!</h1>
+
+        <p>Это письмо отправлено через библиотеку gomail.</p>
+    `)
+	}
+	d := gomail.NewDialer("smtp.gmail.com", 587, "blackwinter470@gmail.com", "xsou vogt glwz xnfi")
+
+	if err := d.DialAndSend(m); err != nil {
+		fmt.Printf("Ошибка отправки: %v\n", err)
+		return err
+	}
+
+	fmt.Println("Письмо отправлено!")
+
+	return nil
 }

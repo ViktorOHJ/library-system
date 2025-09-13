@@ -17,9 +17,9 @@ import (
 	"google.golang.org/grpc"
 )
 
-func runMigrations(db string) {
+func runMigrations(db, path string) {
 	m, err := migrate.New(
-		"file://books/migrations",
+		path,
 		db,
 	)
 	if err != nil {
@@ -48,7 +48,11 @@ func main() {
 		logger.Fatal("BOOKS_DBURL not set in .env file")
 	}
 
-	runMigrations(dbUrl)
+	path := os.Getenv("BOOKS_MIGRATIONS_PATH")
+	if path == "" {
+		path = "file://books/migrations"
+	}
+	runMigrations(dbUrl, path)
 	logger.Info("Running migrations...")
 
 	ctx := context.Background()

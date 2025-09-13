@@ -2,6 +2,7 @@ package loansserver
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strconv"
 	"time"
@@ -83,12 +84,19 @@ func (s *LoansServer) BorrowBook(parentCtx context.Context, req *pb.BorrowReques
 		s.logger.Errorf("Error create noti cliet:%v", err)
 		return nil, status.Error(codes.Internal, "Server Error")
 	}
-	nRes, err := notiCL.Send(ctx, req.UserId, "Borrowing", "borrow_queue")
-	if err != nil {
-		s.logger.Errorf("Error send notifications: %v", err)
-		return nil, status.Error(codes.Internal, "Server Error")
-	}
-	s.logger.Infof("send succes: %v", nRes)
+	go func() {
+		notifCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		_, err := notiCL.Send(notifCtx, req.UserId, "Borrowing", "borrow_queue")
+		if err != nil {
+			if isContextCancellationError(err) {
+				s.logger.Infof("Notification request was cancelled (this is expected): %v", err)
+				return // Не считаем это ошибкой
+			}
+		}
+		s.logger.Info("send succes")
+	}()
 	return &pb.LoanResponse{
 		Id:           strconv.Itoa(loanID),
 		User:         user,
@@ -167,17 +175,21 @@ func (s *LoansServer) ReturnBook(parentCtx context.Context, req *pb.ReturnReques
 		return nil, status.Error(codes.Internal, "Server Error")
 	}
 	s.logger.Info("publish ok")
-	notiCL, err := clients.GetNotificationsClient(s.logger)
-	if err != nil {
-		s.logger.Errorf("Error create noti cliet:%v", err)
-		return nil, status.Error(codes.Internal, "Server Error")
-	}
-	nRes, err := notiCL.Send(ctx, userID, "Returning", "return_queue")
-	if err != nil {
-		s.logger.Errorf("Error send notifications: %v", err)
-		return nil, status.Error(codes.Internal, "Server Error")
-	}
-	s.logger.Infof("send succes: %v", nRes)
+	go func() {
+		notiCL, err := clients.GetNotificationsClient(s.logger)
+		if err != nil {
+			s.logger.Errorf("Error create noti cliet:%v", err)
+
+		}
+		_, err = notiCL.Send(ctx, userID, "Returning", "return_queue")
+		if err != nil {
+			if isContextCancellationError(err) {
+				s.logger.Infof("Notification request was cancelled (this is expected): %v", err)
+				return
+			}
+		}
+		s.logger.Info("send succes")
+	}()
 	res = &pb.LoanResponse{
 		Id:           req.LoanId,
 		User:         user,
@@ -204,4 +216,18 @@ func publish(ctx context.Context, logger *logrus.Logger, message *rabbit.TaskMes
 		return err
 	}
 	return nil
+}
+
+func isContextCancellationError(err error) bool {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	if st, ok := status.FromError(err); ok {
+		switch st.Code() {
+		case codes.Canceled, codes.DeadlineExceeded:
+			return true
+		}
+	}
+
+	return false
 }
