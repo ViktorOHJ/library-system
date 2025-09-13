@@ -69,10 +69,13 @@ func (s *LoansServer) BorrowBook(parentCtx context.Context, req *pb.BorrowReques
 		return nil, status.Error(codes.InvalidArgument, "server error")
 	}
 	message := rabbit.TaskMessage{
-		Type:   "Borrow",
-		UserID: req.UserId,
-		BookID: req.BookId,
-		Email:  user.Email,
+		Type:       "Borrow",
+		UserName:   user.Name,
+		BookTitle:  book.Title,
+		BookAuthor: book.Author,
+		DueDate:    time.Now().AddDate(0, 0, 14).Format("2006-01-02"),
+		LoanID:     strconv.Itoa(loanID),
+		Email:      user.Email,
 	}
 	err = publish(ctx, s.logger, &message)
 	if err != nil {
@@ -85,14 +88,14 @@ func (s *LoansServer) BorrowBook(parentCtx context.Context, req *pb.BorrowReques
 		return nil, status.Error(codes.Internal, "Server Error")
 	}
 	go func() {
-		notifCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		notifCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		_, err := notiCL.Send(notifCtx, req.UserId, "Borrowing", "borrow_queue")
+		_, err := notiCL.Send(notifCtx, req.UserId, "", "borrow_queue")
 		if err != nil {
 			if isContextCancellationError(err) {
 				s.logger.Infof("Notification request was cancelled (this is expected): %v", err)
-				return // Не считаем это ошибкой
+				return
 			}
 		}
 		s.logger.Info("send succes")
@@ -164,10 +167,13 @@ func (s *LoansServer) ReturnBook(parentCtx context.Context, req *pb.ReturnReques
 		return nil, status.Error(codes.Internal, "Server Error")
 	}
 	message := rabbit.TaskMessage{
-		Type:   "Return",
-		UserID: userID,
-		BookID: bookID,
-		Email:  user.Email,
+		Type:       "Return",
+		UserName:   user.Name,
+		BookTitle:  book.Title,
+		BookAuthor: book.Author,
+		DueDate:    time.Now().Format("2006-01-02"),
+		LoanID:     req.LoanId,
+		Email:      user.Email,
 	}
 	err = publish(ctx, s.logger, &message)
 	if err != nil {
@@ -175,13 +181,16 @@ func (s *LoansServer) ReturnBook(parentCtx context.Context, req *pb.ReturnReques
 		return nil, status.Error(codes.Internal, "Server Error")
 	}
 	s.logger.Info("publish ok")
-	go func() {
-		notiCL, err := clients.GetNotificationsClient(s.logger)
-		if err != nil {
-			s.logger.Errorf("Error create noti cliet:%v", err)
+	notiCL, err := clients.GetNotificationsClient(s.logger)
+	if err != nil {
+		s.logger.Errorf("Error create noti cliet:%v", err)
 
-		}
-		_, err = notiCL.Send(ctx, userID, "Returning", "return_queue")
+	}
+	go func() {
+		notifCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		_, err = notiCL.Send(notifCtx, userID, "", "return_queue")
 		if err != nil {
 			if isContextCancellationError(err) {
 				s.logger.Infof("Notification request was cancelled (this is expected): %v", err)
@@ -194,7 +203,7 @@ func (s *LoansServer) ReturnBook(parentCtx context.Context, req *pb.ReturnReques
 		Id:           req.LoanId,
 		User:         user,
 		Book:         book,
-		ReturnedDate: time.Now().Format(time.RFC3339),
+		ReturnedDate: time.Now().Format("2006-01-02"),
 	}
 	return res, nil
 }

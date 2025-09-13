@@ -2,6 +2,7 @@ package notificserver
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -42,9 +43,9 @@ func (s *NotificServer) SendNotification(ctx context.Context, req *pb.Notificati
 	}
 	for msg := range msgs {
 		s.logger.Infof("Received: %s", msg.Body)
-		err = emailsend(req.NotificationType)
+		err = sendEmail(s.logger, msg.Body)
 		if err != nil {
-			s.logger.Fatalf("Error: %v", err)
+			s.logger.Errorf("Error: %v", err)
 		}
 		msg.Ack(false)
 
@@ -55,27 +56,42 @@ func (s *NotificServer) SendNotification(ctx context.Context, req *pb.Notificati
 	}, nil
 }
 
-func emailsend(nType string) error {
-	m := gomail.NewMessage()
-	m.SetHeader("From", "blackwinter470@gmail.com")
-	m.SetHeader("To", "victor.kohler11@gmail.com")
-	m.SetHeader("Subject", "Письмо через gomail")
-	switch {
-	case nType == "borrow_queue":
-		m.SetBody("text/html", `
-        <h1>Привет!</h1>
-
-        <p>Это письмо отправлено через библиотеку gomail.</p>
-    `)
+func sendEmail(logger *logrus.Logger, message []byte) error {
+	var event rabbit.TaskMessage
+	err := json.Unmarshal([]byte(message), &event)
+	if err != nil {
+		return err
 	}
-	d := gomail.NewDialer("smtp.gmail.com", 587, "blackwinter470@gmail.com", "xsou vogt glwz xnfi")
+	if event.Email == "" {
+		logger.Error("Email is empty")
+		return fmt.Errorf("email is empty")
+	}
+	email := os.Getenv("EMAIL")
+	var emailMessage []byte
+	m := gomail.NewMessage()
+	m.SetHeader("From", email)
+	m.SetHeader("To", event.Email)
+	if event.Type == "Borrow" {
+		m.SetHeader("Subject", "Book Borrowed Notification")
+		emailMessage = []byte(fmt.Sprintf("Dear %s,\n\nYou have successfully borrowed the book \"%s\" by %s. Please remember to return it by %s.\n\nHappy reading!\nLibrary Team",
+			event.UserName, event.BookTitle, event.BookAuthor, event.DueDate))
+	} else if event.Type == "Return" {
+		m.SetHeader("Subject", "Book Return Confirmation")
+		emailMessage = []byte(fmt.Sprintf("Dear %s,\n\nThank you for returning the book \"%s\" by %s. We hope you enjoyed reading it!\n\nBest regards,\nLibrary Team",
+			event.UserName, event.BookTitle, event.BookAuthor))
+	} else {
+		logger.Error("Unknown event type")
+		return fmt.Errorf("unknown event type")
+	}
+	m.SetBody("text/html", string(emailMessage))
+	d := gomail.NewDialer("smtp.gmail.com", 587, email, os.Getenv("MAIL_PASS"))
 
 	if err := d.DialAndSend(m); err != nil {
-		fmt.Printf("Ошибка отправки: %v\n", err)
+		fmt.Printf("Sending error: %v\n", err)
 		return err
 	}
 
-	fmt.Println("Письмо отправлено!")
+	logger.Info("Email sent successfully")
 
 	return nil
 }

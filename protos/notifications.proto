@@ -10,7 +10,7 @@ service NotificationService {
 message NotificationRequest {
   string user_id = 1;
   string message = 2;
-  string notification_type = 3; // "email", "sms"
+  string notification_type = 3;
 }
 
 message NotificationResponse {

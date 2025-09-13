@@ -16,10 +16,13 @@ type RabbitMQClient struct {
 }
 
 type TaskMessage struct {
-	Type   string `json:"type"`
-	UserID string `json:"user_id"`
-	BookID string `json:"book_id"`
-	Email  string `json:"email"`
+	Type       string `json:"type"`
+	UserName   string `json:"user_name"`
+	BookTitle  string `json:"book_title"`
+	BookAuthor string `json:"book_author"`
+	DueDate    string `json:"due_date"`
+	LoanID     string `json:"loan_id"`
+	Email      string `json:"email"`
 }
 
 func NewRabbitMQClient(logger *logrus.Logger, url string) (*RabbitMQClient, error) {

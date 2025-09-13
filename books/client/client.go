@@ -14,9 +14,10 @@ type BookClient struct {
 	client  pb.BookServiceClient
 	timeout time.Duration
 	conn    *grpc.ClientConn
+	logger  *logrus.Logger
 }
 
-func NewBookClient(addr string, timeout time.Duration) (*BookClient, error) {
+func NewBookClient(addr string, timeout time.Duration, logger *logrus.Logger) (*BookClient, error) {
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
@@ -45,9 +46,9 @@ func (c *BookClient) Get(ctx context.Context, id string) (*pb.BookResponse, erro
 	defer cancel()
 
 	if id == "" {
-		return nil, grpc.Errorf(codes.InvalidArgument, "UserId cannot be empty")
+		return nil, grpc.Errorf(codes.InvalidArgument, "BookId cannot be empty")
 	}
-	logrus.Infof("GetBook called with BookId: %s", id)
+	c.logger.Infof("GetBook called with BookId: %s", id)
 	return c.client.GetBook(ctx, &pb.GetBookRequest{
 		BookId: id,
 	})
