@@ -42,15 +42,15 @@ func main() {
 
 	logger.Infof("Listening on port %s", PORT)
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	shutdownChan := make(chan os.Signal, 1)
+	signal.Notify(shutdownChan, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		if err := server.Serve(lis); err != nil {
 			logrus.Fatalf("Failed to serve: %v", err)
 		}
 	}()
-
-	<-stop
+	// Wait for a termination signal to initiate graceful shutdown
+	<-shutdownChan
 	logger.Info("Received shutdown signal, stopping server gracefully...")
 	server.GracefulStop()
 	logger.Info("Server stopped gracefully")

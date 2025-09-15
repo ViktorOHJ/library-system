@@ -2,7 +2,7 @@ package bookclient
 
 import (
 	"context"
-	"strings"
+	"strconv"
 	"time"
 
 	pb "github.com/ViktorOHJ/library-system/protos/pb"
@@ -21,7 +21,7 @@ type BookClient struct {
 }
 
 func NewBookClient(addr string, timeout time.Duration, logger *logrus.Logger) (*BookClient, error) {
-	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial("localhost:"+addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}
@@ -134,12 +134,10 @@ func validateBookID(id string) error {
 	if id == "" {
 		return status.Error(codes.InvalidArgument, "BookId cannot be empty")
 	}
-	if len(id) > 50 {
-		return status.Error(codes.InvalidArgument, "BookId too long")
-	}
-	// Простая проверка на SQL injection
-	if strings.ContainsAny(id, "';--/*") {
-		return status.Error(codes.InvalidArgument, "Invalid characters in BookId")
+
+	bookID, err := strconv.Atoi(id)
+	if err != nil || bookID <= 0 {
+		return status.Error(codes.InvalidArgument, "BookId must be a positive integer")
 	}
 	return nil
 }

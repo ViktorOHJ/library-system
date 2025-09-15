@@ -2,10 +2,12 @@ package userserver
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"time"
 
 	pb "github.com/ViktorOHJ/library-system/protos/pb"
+	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -69,7 +71,10 @@ func (s *UserServer) GetUser(parentCtx context.Context, req *pb.GetUserRequest) 
 
 	err = row.Scan(&res.Id, &res.Name, &res.Email)
 	if err != nil {
-		s.logger.Errorf("Failed to get user: %v", err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Error(codes.NotFound, "user not found")
+		}
+		s.logger.Errorf("Database error: %v", err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 	return res, nil

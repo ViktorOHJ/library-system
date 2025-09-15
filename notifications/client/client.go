@@ -18,7 +18,7 @@ type NotificClient struct {
 }
 
 func NewNotificationClient(addr string, timeout time.Duration, logger *logrus.Logger) (*NotificClient, error) {
-	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial("localhost:"+addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}

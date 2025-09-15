@@ -67,27 +67,38 @@ func sendEmail(logger *logrus.Logger, message []byte) error {
 		return fmt.Errorf("email is empty")
 	}
 	email := os.Getenv("EMAIL")
+	mailPass := os.Getenv("MAIL_PASS")
+	if email == "" {
+		logger.Error("EMAIL environment variable is not set")
+		return fmt.Errorf("EMAIL environment variable is not set")
+	}
+	if mailPass == "" {
+		logger.Error("MAIL_PASS environment variable is not set")
+		return fmt.Errorf("MAIL_PASS environment variable is not set")
+	}
 	var emailMessage []byte
 	m := gomail.NewMessage()
 	m.SetHeader("From", email)
 	m.SetHeader("To", event.Email)
-	if event.Type == "Borrow" {
+	switch event.Type {
+	case "Borrow":
 		m.SetHeader("Subject", "Book Borrowed Notification")
 		emailMessage = []byte(fmt.Sprintf("Dear %s,\n\nYou have successfully borrowed the book \"%s\" by %s. Please remember to return it by %s.\n\nHappy reading!\nLibrary Team",
 			event.UserName, event.BookTitle, event.BookAuthor, event.DueDate))
-	} else if event.Type == "Return" {
+	case "Return":
 		m.SetHeader("Subject", "Book Return Confirmation")
 		emailMessage = []byte(fmt.Sprintf("Dear %s,\n\nThank you for returning the book \"%s\" by %s. We hope you enjoyed reading it!\n\nBest regards,\nLibrary Team",
 			event.UserName, event.BookTitle, event.BookAuthor))
-	} else {
+	default:
 		logger.Error("Unknown event type")
 		return fmt.Errorf("unknown event type")
 	}
 	m.SetBody("text/html", string(emailMessage))
-	d := gomail.NewDialer("smtp.gmail.com", 587, email, os.Getenv("MAIL_PASS"))
+	d := gomail.NewDialer("smtp.gmail.com", 465, email, mailPass)
+	d.SSL = true
 
 	if err := d.DialAndSend(m); err != nil {
-		fmt.Printf("Sending error: %v\n", err)
+		logger.Errorf("Sending error: %v\n", err)
 		return err
 	}
 

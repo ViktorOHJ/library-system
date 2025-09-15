@@ -21,7 +21,7 @@ type UserClient struct {
 }
 
 func NewUserClient(addr string, timeout time.Duration, logger *logrus.Logger) (*UserClient, error) {
-	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithTimeout(timeout))
+	conn, err := grpc.Dial("localhost:"+addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}

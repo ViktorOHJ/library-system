@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/ViktorOHJ/library-system/loans/clients"
@@ -87,19 +88,22 @@ func (s *LoansServer) BorrowBook(parentCtx context.Context, req *pb.BorrowReques
 		s.logger.Errorf("Error create noti cliet:%v", err)
 		return nil, status.Error(codes.Internal, "server error")
 	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
 		notifCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-
+		defer wg.Done()
 		_, err := notiCL.Send(notifCtx, req.UserId, "", "borrow_queue")
 		if err != nil {
 			if isContextCancellationError(err) {
 				s.logger.Infof("Notification request was cancelled (this is expected): %v", err)
-				return
 			}
 		}
-		s.logger.Info("send succes")
+		s.logger.Info("send success")
 	}()
+	wg.Wait()
 	return &pb.LoanResponse{
 		Id:           strconv.Itoa(loanID),
 		User:         user,
@@ -147,10 +151,7 @@ func (s *LoansServer) ReturnBook(parentCtx context.Context, req *pb.ReturnReques
 		return nil, status.Error(codes.Internal, "Server Error")
 	}
 
-	statusReq := &pb.UpdateBookRequest{
-		BookId: bookID,
-	}
-	_, err = bookClient.Update(ctx, statusReq.BookId)
+	_, err = bookClient.Update(ctx, bookID)
 	if err != nil {
 		s.logger.Errorf("Error updating book status: %v", err)
 		tx.Rollback(ctx)
@@ -188,13 +189,16 @@ func (s *LoansServer) ReturnBook(parentCtx context.Context, req *pb.ReturnReques
 
 	notiCL, err := clients.GetNotificationsClient(os.Getenv("NOTIFICATIONS_PORT"), s.logger)
 	if err != nil {
-		s.logger.Errorf("Error create noti cliet:%v", err)
-
+		s.logger.Errorf("Error create noti client:%v", err)
 	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+
 		notifCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-
+		defer wg.Done()
 		_, err = notiCL.Send(notifCtx, userID, "", "return_queue")
 		if err != nil {
 			if isContextCancellationError(err) {
@@ -204,6 +208,7 @@ func (s *LoansServer) ReturnBook(parentCtx context.Context, req *pb.ReturnReques
 		}
 		s.logger.Info("send succes")
 	}()
+	wg.Wait()
 	res = &pb.LoanResponse{
 		Id:           req.LoanId,
 		User:         user,

@@ -18,7 +18,7 @@ type LoansClient struct {
 }
 
 func NewLoansClient(addr string, timeout time.Duration, logger *logrus.Logger) (*LoansClient, error) {
-	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial("localhost:"+addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}

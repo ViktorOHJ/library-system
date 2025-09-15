@@ -14,12 +14,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type BookService interface {
-	CreateBook(ctx context.Context, req *pb.CreateBookRequest) (*pb.BookResponse, error)
-	GetBook(ctx context.Context, req *pb.GetBookRequest) (*pb.BookResponse, error)
-	UpdateBookStatus(ctx context.Context, req *pb.UpdateBookRequest) (*pb.BookResponse, error)
-}
-
 type BooksServer struct {
 	pb.UnimplementedBookServiceServer
 	db     *pgxpool.Pool
