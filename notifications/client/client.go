@@ -7,6 +7,7 @@ import (
 	"github.com/ViktorOHJ/library-system/protos/pb"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type NotificClient struct {
@@ -17,7 +18,7 @@ type NotificClient struct {
 }
 
 func NewNotificationClient(addr string, timeout time.Duration, logger *logrus.Logger) (*NotificClient, error) {
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}

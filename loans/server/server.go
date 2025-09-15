@@ -28,7 +28,7 @@ func NewLoansServer(db *pgxpool.Pool, logger *logrus.Logger) *LoansServer {
 }
 
 func (s *LoansServer) BorrowBook(parentCtx context.Context, req *pb.BorrowRequest) (res *pb.LoanResponse, err error) {
-	usrClient, err := clients.GetUsersClient(s.logger)
+	usrClient, err := clients.GetUsersClient(os.Getenv("USERS_PORT"), s.logger)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create user client: %v", err)
 	}
@@ -42,7 +42,7 @@ func (s *LoansServer) BorrowBook(parentCtx context.Context, req *pb.BorrowReques
 		return nil, status.Errorf(codes.Internal, "failed to get user: %v", err)
 	}
 
-	bookClient, err := clients.GetBookClient(s.logger)
+	bookClient, err := clients.GetBookClient(os.Getenv("BOOKS_PORT"), s.logger)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create book client: %v", err)
 	}
@@ -80,12 +80,12 @@ func (s *LoansServer) BorrowBook(parentCtx context.Context, req *pb.BorrowReques
 	err = publish(ctx, s.logger, &message)
 	if err != nil {
 		s.logger.Errorf("RabbirMQ error: %v", err)
-		return nil, status.Error(codes.Internal, "internal server error")
+		return nil, status.Error(codes.Internal, "server error")
 	}
-	notiCL, err := clients.GetNotificationsClient(s.logger)
+	notiCL, err := clients.GetNotificationsClient(os.Getenv("NOTIFICATIONS_PORT"), s.logger)
 	if err != nil {
 		s.logger.Errorf("Error create noti cliet:%v", err)
-		return nil, status.Error(codes.Internal, "Server Error")
+		return nil, status.Error(codes.Internal, "server error")
 	}
 	go func() {
 		notifCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -110,7 +110,7 @@ func (s *LoansServer) BorrowBook(parentCtx context.Context, req *pb.BorrowReques
 }
 
 func (s *LoansServer) ReturnBook(parentCtx context.Context, req *pb.ReturnRequest) (res *pb.LoanResponse, err error) {
-	bookClient, err := clients.GetBookClient(s.logger)
+	bookClient, err := clients.GetBookClient(os.Getenv("BOOKS_PORT"), s.logger)
 	if err != nil {
 		s.logger.Errorf("ERROR returnbook creating bookclient: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to create book client: %v", err)
@@ -121,7 +121,7 @@ func (s *LoansServer) ReturnBook(parentCtx context.Context, req *pb.ReturnReques
 	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	defer cancel()
 
-	userclient, err := clients.GetUsersClient(s.logger)
+	userclient, err := clients.GetUsersClient(os.Getenv("USERS_PORT"), s.logger)
 	if err != nil {
 		s.logger.Errorf("error get client: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to create user client: %v", err)
@@ -151,6 +151,11 @@ func (s *LoansServer) ReturnBook(parentCtx context.Context, req *pb.ReturnReques
 		BookId: bookID,
 	}
 	_, err = bookClient.Update(ctx, statusReq.BookId)
+	if err != nil {
+		s.logger.Errorf("Error updating book status: %v", err)
+		tx.Rollback(ctx)
+		return nil, status.Error(codes.Internal, "Server Error")
+	}
 	err = tx.Commit(ctx)
 	if err != nil {
 		s.logger.Errorf("commit tx: %v", err)
@@ -180,8 +185,8 @@ func (s *LoansServer) ReturnBook(parentCtx context.Context, req *pb.ReturnReques
 		s.logger.Errorf("error publish: %v", err)
 		return nil, status.Error(codes.Internal, "Server Error")
 	}
-	s.logger.Info("publish ok")
-	notiCL, err := clients.GetNotificationsClient(s.logger)
+
+	notiCL, err := clients.GetNotificationsClient(os.Getenv("NOTIFICATIONS_PORT"), s.logger)
 	if err != nil {
 		s.logger.Errorf("Error create noti cliet:%v", err)
 

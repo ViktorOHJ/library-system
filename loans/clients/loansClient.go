@@ -5,17 +5,20 @@ import (
 	"time"
 
 	"github.com/ViktorOHJ/library-system/protos/pb"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type LoansClient struct {
 	client  pb.LoanServiceClient
 	timeout time.Duration
 	conn    *grpc.ClientConn
+	logger  *logrus.Logger
 }
 
-func NewLoansClient(addr string, timeout time.Duration) (*LoansClient, error) {
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+func NewLoansClient(addr string, timeout time.Duration, logger *logrus.Logger) (*LoansClient, error) {
+	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}
@@ -24,6 +27,7 @@ func NewLoansClient(addr string, timeout time.Duration) (*LoansClient, error) {
 		conn:    conn,
 		timeout: timeout,
 		client:  pb.NewLoanServiceClient(conn),
+		logger:  logger,
 	}, nil
 }
 

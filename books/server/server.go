@@ -2,15 +2,23 @@ package bookserver
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"time"
 
 	pb "github.com/ViktorOHJ/library-system/protos/pb"
+	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+type BookService interface {
+	CreateBook(ctx context.Context, req *pb.CreateBookRequest) (*pb.BookResponse, error)
+	GetBook(ctx context.Context, req *pb.GetBookRequest) (*pb.BookResponse, error)
+	UpdateBookStatus(ctx context.Context, req *pb.UpdateBookRequest) (*pb.BookResponse, error)
+}
 
 type BooksServer struct {
 	pb.UnimplementedBookServiceServer
@@ -35,7 +43,7 @@ func (s *BooksServer) CreateBook(parentCtx context.Context, req *pb.CreateBookRe
 		req.Title, req.Author, req.Year, true).Scan(&book.Id, &book.Title, &book.Author, &book.Year, &book.Available)
 	if err != nil {
 		s.logger.Errorf("Database error: %v", err)
-		return nil, status.Errorf(codes.Internal, "internal server error")
+		return nil, status.Errorf(codes.Internal, "server error")
 	}
 	return book, nil
 }
@@ -64,8 +72,11 @@ func (s *BooksServer) GetBook(parentCtx context.Context, req *pb.GetBookRequest)
 	row := s.db.QueryRow(ctx, "SELECT id, title, author, published_year, is_available FROM books WHERE id=$1", id)
 	err = row.Scan(&res.Id, &res.Title, &res.Author, &res.Year, &res.Available)
 	if err != nil {
-		s.logger.Errorf("Failed to get book: %v", err)
-		return nil, err
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Error(codes.NotFound, "book not found")
+		}
+		s.logger.Errorf("db error: %v", err)
+		return nil, status.Error(codes.Internal, "server error")
 	}
 	return res, nil
 }
@@ -74,8 +85,8 @@ func (s *BooksServer) UpdateBookStatus(ctx context.Context, req *pb.UpdateBookRe
 	s.logger.Info("updateBookStatus called")
 	_, err = s.db.Exec(ctx, `UPDATE books SET is_available = NOT is_available WHERE id = $1;`, req.BookId)
 	if err != nil {
-		s.logger.Errorf("Database error: %v", err)
-		return nil, status.Error(codes.Internal, "internal server error")
+		s.logger.Errorf("db error: %v", err)
+		return nil, status.Error(codes.Internal, "server error")
 	}
 	return &pb.BookResponse{}, nil
 }

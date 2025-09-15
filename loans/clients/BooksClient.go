@@ -7,8 +7,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func GetBookClient(logger *logrus.Logger) (*bookclient.BookClient, error) {
-	bookcl, err := bookclient.NewBookClient("localhost:50052", 10*time.Second, logger)
+func GetBookClient(addr string, logger *logrus.Logger) (*bookclient.BookClient, error) {
+	if addr == "" {
+		logger.Warn("No BOOKS_PORT env var set, using default localhost:50052")
+		addr = "localhost:50052"
+	}
+	bookcl, err := bookclient.NewBookClient(addr, 10*time.Second, logger)
 	if err != nil {
 		logger.Fatalf("bookclient not created: %v", err)
 		return nil, err
