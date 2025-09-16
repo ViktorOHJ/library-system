@@ -30,10 +30,8 @@ func NewNotificationClient(addr string, timeout time.Duration, logger *logrus.Lo
 	}, nil
 }
 
-func (c *NotificClient) Send(ctx context.Context, userID, message, nType string) (*pb.NotificationResponse, error) {
+func (c *NotificClient) Send(ctx context.Context, nType string) (*pb.NotificationResponse, error) {
 	return c.client.SendNotification(ctx, &pb.NotificationRequest{
-		UserId:           userID,
-		Message:          message,
 		NotificationType: nType,
 	},
 	)

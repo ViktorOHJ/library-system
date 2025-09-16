@@ -23,9 +23,7 @@ const (
 
 type NotificationRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
-	UserId           string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Message          string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	NotificationType string                 `protobuf:"bytes,3,opt,name=notification_type,json=notificationType,proto3" json:"notification_type,omitempty"` // "email", "sms"
+	NotificationType string                 `protobuf:"bytes,1,opt,name=notification_type,json=notificationType,proto3" json:"notification_type,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -60,20 +58,6 @@ func (*NotificationRequest) Descriptor() ([]byte, []int) {
 	return file_notifications_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *NotificationRequest) GetUserId() string {
-	if x != nil {
-		return x.UserId
-	}
-	return ""
-}
-
-func (x *NotificationRequest) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
 func (x *NotificationRequest) GetNotificationType() string {
 	if x != nil {
 		return x.NotificationType
@@ -84,7 +68,6 @@ func (x *NotificationRequest) GetNotificationType() string {
 type NotificationResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -126,25 +109,15 @@ func (x *NotificationResponse) GetSuccess() bool {
 	return false
 }
 
-func (x *NotificationResponse) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
 var File_notifications_proto protoreflect.FileDescriptor
 
 const file_notifications_proto_rawDesc = "" +
 	"\n" +
-	"\x13notifications.proto\x12\alibrary\"u\n" +
-	"\x13NotificationRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\x12+\n" +
-	"\x11notification_type\x18\x03 \x01(\tR\x10notificationType\"J\n" +
+	"\x13notifications.proto\x12\alibrary\"B\n" +
+	"\x13NotificationRequest\x12+\n" +
+	"\x11notification_type\x18\x01 \x01(\tR\x10notificationType\"0\n" +
 	"\x14NotificationResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage2h\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess2h\n" +
 	"\x13NotificationService\x12Q\n" +
 	"\x10SendNotification\x12\x1c.library.NotificationRequest\x1a\x1d.library.NotificationResponse\"\x00B\x06Z\x04.;pbb\x06proto3"
 

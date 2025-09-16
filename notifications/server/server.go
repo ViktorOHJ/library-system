@@ -52,7 +52,6 @@ func (s *NotificServer) SendNotification(ctx context.Context, req *pb.Notificati
 	}
 	return &pb.NotificationResponse{
 		Success: true,
-		Message: "OK",
 	}, nil
 }
 

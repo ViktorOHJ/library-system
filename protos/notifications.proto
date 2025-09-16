@@ -8,12 +8,9 @@ service NotificationService {
 }
 
 message NotificationRequest {
-  string user_id = 1;
-  string message = 2;
-  string notification_type = 3;
+  string notification_type = 1;
 }
 
 message NotificationResponse {
   bool success = 1;
-  string message = 2;
 }

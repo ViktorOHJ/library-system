@@ -92,10 +92,10 @@ func (s *LoansServer) BorrowBook(parentCtx context.Context, req *pb.BorrowReques
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		notifCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+		//notifCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		//defer cancel()
 		defer wg.Done()
-		_, err := notiCL.Send(notifCtx, req.UserId, "", "borrow_queue")
+		_, err := notiCL.Send(context.Background(), "borrow_queue")
 		if err != nil {
 			if isContextCancellationError(err) {
 				s.logger.Infof("Notification request was cancelled (this is expected): %v", err)
@@ -190,20 +190,20 @@ func (s *LoansServer) ReturnBook(parentCtx context.Context, req *pb.ReturnReques
 	notiCL, err := clients.GetNotificationsClient(os.Getenv("NOTIFICATIONS_PORT"), s.logger)
 	if err != nil {
 		s.logger.Errorf("Error create noti client:%v", err)
+		return nil, status.Error(codes.Internal, "Server Error")
 	}
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 
-		notifCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+		//notifCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		//defer cancel()
 		defer wg.Done()
-		_, err = notiCL.Send(notifCtx, userID, "", "return_queue")
+		_, err = notiCL.Send(context.Background(), "return_queue")
 		if err != nil {
 			if isContextCancellationError(err) {
 				s.logger.Infof("Notification request was cancelled (this is expected): %v", err)
-				return
 			}
 		}
 		s.logger.Info("send succes")
