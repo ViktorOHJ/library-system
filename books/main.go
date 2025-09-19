@@ -69,7 +69,7 @@ func main() {
 
 	PORT := os.Getenv("BOOKS_PORT")
 	if PORT == "" {
-		PORT = "50052" // Default port if not set
+		PORT = "50052"
 		logger.Infof("BOOKS_PORT not set, using default port %s", PORT)
 	}
 
@@ -80,7 +80,6 @@ func main() {
 
 	logger.Infof("Listening on port %s", PORT)
 
-	// Handle graceful shutdown
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 	go func() {

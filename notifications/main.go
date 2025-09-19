@@ -49,9 +49,10 @@ func main() {
 			logrus.Fatalf("Failed to serve: %v", err)
 		}
 	}()
-	// Wait for a termination signal to initiate graceful shutdown
+
 	<-shutdownChan
 	logger.Info("Received shutdown signal, stopping server gracefully...")
+	notificServer.Shutdown()
 	server.GracefulStop()
 	logger.Info("Server stopped gracefully")
 }

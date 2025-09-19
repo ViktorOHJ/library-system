@@ -3,6 +3,7 @@ package userserver
 import (
 	"context"
 	"errors"
+	"net/mail"
 	"strconv"
 	"time"
 
@@ -31,6 +32,11 @@ func NewUserServer(db *pgxpool.Pool, logger *logrus.Logger) *UserServer {
 
 func (s *UserServer) CreateUser(parentCtx context.Context, req *pb.CreateUserRequest) (res *pb.UserResponse, err error) {
 	s.logger.Info("CreateUser called")
+
+	err = validateCreateUserRequest(req.Name, req.Email)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	ctx, cancel := context.WithTimeout(parentCtx, timeout)
 	defer cancel()
@@ -78,4 +84,19 @@ func (s *UserServer) GetUser(parentCtx context.Context, req *pb.GetUserRequest) 
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 	return res, nil
+}
+
+func validateCreateUserRequest(name, email string) error {
+	if name == "" {
+		return status.Error(codes.InvalidArgument, "name cannot be empty")
+	}
+	if email == "" || !isValidEmail(email) {
+		return status.Error(codes.InvalidArgument, "invalid email")
+	}
+	return nil
+}
+
+func isValidEmail(email string) bool {
+	_, err := mail.ParseAddress(email)
+	return err == nil
 }

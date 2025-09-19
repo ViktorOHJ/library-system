@@ -35,21 +35,6 @@ func NewBookClient(addr string, timeout time.Duration, logger *logrus.Logger) (*
 }
 
 func (c *BookClient) Create(ctx context.Context, title, author string, year int32) (*pb.BookResponse, error) {
-	if title == "" {
-		return nil, status.Error(codes.InvalidArgument, "title cannot be empty")
-	}
-	if len(title) > 255 {
-		return nil, status.Error(codes.InvalidArgument, "title too long")
-	}
-	if author == "" {
-		return nil, status.Error(codes.InvalidArgument, "author cannot be empty")
-	}
-	if len(author) > 100 {
-		return nil, status.Error(codes.InvalidArgument, "author name too long")
-	}
-	if year < 0 || year > int32(time.Now().Year()+10) {
-		return nil, status.Error(codes.InvalidArgument, "invalid year")
-	}
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 

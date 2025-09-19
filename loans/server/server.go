@@ -92,13 +92,15 @@ func (s *LoansServer) BorrowBook(parentCtx context.Context, req *pb.BorrowReques
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		//notifCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		//defer cancel()
+
 		defer wg.Done()
 		_, err := notiCL.Send(context.Background(), "borrow_queue")
 		if err != nil {
 			if isContextCancellationError(err) {
 				s.logger.Infof("Notification request was cancelled (this is expected): %v", err)
+			} else {
+				s.logger.Errorf("Error sending notification: %v", err)
+				return
 			}
 		}
 		s.logger.Info("send success")
@@ -196,14 +198,14 @@ func (s *LoansServer) ReturnBook(parentCtx context.Context, req *pb.ReturnReques
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-
-		//notifCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		//defer cancel()
 		defer wg.Done()
 		_, err = notiCL.Send(context.Background(), "return_queue")
 		if err != nil {
 			if isContextCancellationError(err) {
 				s.logger.Infof("Notification request was cancelled (this is expected): %v", err)
+			} else {
+				s.logger.Errorf("Error sending notification: %v", err)
+				return
 			}
 		}
 		s.logger.Info("send succes")

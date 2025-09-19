@@ -8,15 +8,76 @@ import (
 
 	"github.com/ViktorOHJ/library-system/protos/pb"
 	"github.com/ViktorOHJ/library-system/rabbit"
+	"github.com/rabbitmq/amqp091-go"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gopkg.in/gomail.v2"
 )
 
+type EmailSender interface {
+	SendEmail(to, subject, body string) error
+}
+
+type MessageConsumer interface {
+	ConsumeFromQueue(queueName string) (<-chan amqp091.Delivery, error)
+	Close()
+}
+
+type SMTPEmailSender struct {
+	host     string
+	port     int
+	username string
+	password string
+}
+
+func NewSMTPEmailSender(host string, port int, username, password string) *SMTPEmailSender {
+	return &SMTPEmailSender{
+		host:     host,
+		port:     port,
+		username: username,
+		password: password,
+	}
+}
+
+func (s *SMTPEmailSender) SendEmail(to, subject, body string) error {
+	m := gomail.NewMessage()
+	m.SetHeader("From", s.username)
+	m.SetHeader("To", to)
+	m.SetHeader("Subject", subject)
+	m.SetBody("text/html", body)
+
+	d := gomail.NewDialer(s.host, s.port, s.username, s.password)
+	d.SSL = true
+
+	return d.DialAndSend(m)
+}
+
+type RabbitConsumer struct {
+	client *rabbit.RabbitMQClient
+}
+
+func NewRabbitConsumer(rabbitURL string, logger *logrus.Logger) (*RabbitConsumer, error) {
+	client, err := rabbit.NewRabbitMQClient(logger, rabbitURL)
+	if err != nil {
+		return nil, err
+	}
+	return &RabbitConsumer{client: client}, nil
+}
+
+func (r *RabbitConsumer) ConsumeFromQueue(queueName string) (<-chan amqp091.Delivery, error) {
+	return r.client.ConsumeFromQueue(queueName)
+}
+
+func (r *RabbitConsumer) Close() {
+	r.client.Close()
+}
+
 type NotificServer struct {
 	pb.UnimplementedNotificationServiceServer
-	logger *logrus.Logger
+	logger          *logrus.Logger
+	emailSender     EmailSender
+	messageConsumer MessageConsumer
 }
 
 func NewNotificServer(logger *logrus.Logger) *NotificServer {
@@ -25,83 +86,138 @@ func NewNotificServer(logger *logrus.Logger) *NotificServer {
 	}
 }
 
-func (s *NotificServer) SendNotification(ctx context.Context, req *pb.NotificationRequest) (res *pb.NotificationResponse, err error) {
-	s.logger.Info("SendNotification called")
-
-	rabbitURL := os.Getenv("RABBIT_URL")
-	rabbit, err := rabbit.NewRabbitMQClient(s.logger, rabbitURL)
-	if err != nil {
-		s.logger.Errorf("Error to create rabbit client: %v", err)
-		return nil, status.Errorf(codes.Internal, "Server Error")
+func NewNotificServerWithDeps(logger *logrus.Logger, emailSender EmailSender, messageConsumer MessageConsumer) *NotificServer {
+	return &NotificServer{
+		logger:          logger,
+		emailSender:     emailSender,
+		messageConsumer: messageConsumer,
 	}
-	defer rabbit.Close()
-
-	msgs, err := rabbit.ConsumeFromQueue(req.NotificationType)
-	if err != nil {
-		s.logger.Errorf("Error to consume messages: %v", err)
-		return nil, status.Errorf(codes.Internal, "Server Error")
-	}
-	for msg := range msgs {
-		s.logger.Infof("Received: %s", msg.Body)
-		err = sendEmail(s.logger, msg.Body)
-		if err != nil {
-			s.logger.Errorf("Error: %v", err)
-		}
-		msg.Ack(false)
-
-	}
-	return &pb.NotificationResponse{
-		Success: true,
-	}, nil
 }
 
-func sendEmail(logger *logrus.Logger, message []byte) error {
-	var event rabbit.TaskMessage
-	err := json.Unmarshal([]byte(message), &event)
-	if err != nil {
-		return err
+func (s *NotificServer) SendNotification(ctx context.Context, req *pb.NotificationRequest) (*pb.NotificationResponse, error) {
+	s.logger.Info("SendNotification called")
+
+	if err := s.initDependencies(); err != nil {
+		s.logger.Errorf("Failed to initialize dependencies: %v", err)
+		return nil, status.Errorf(codes.Internal, "Server Error")
 	}
+
+	msgs, err := s.messageConsumer.ConsumeFromQueue(req.NotificationType)
+	if err != nil {
+		s.logger.Errorf("Error consuming messages: %v", err)
+		return nil, status.Errorf(codes.Internal, "Server Error")
+	}
+
+	for msg := range msgs {
+		s.logger.Infof("Received: %s", msg.Body)
+
+		if err := s.processMessage(msg.Body); err != nil {
+			s.logger.Errorf("Error processing message: %v", err)
+			msg.Nack(false, true)
+			continue
+		}
+
+		msg.Ack(false)
+	}
+
+	return &pb.NotificationResponse{Success: true}, nil
+}
+
+func (s *NotificServer) processMessage(messageBody []byte) error {
+	var event rabbit.TaskMessage
+	if err := json.Unmarshal(messageBody, &event); err != nil {
+		return fmt.Errorf("failed to unmarshal message: %w", err)
+	}
+
 	if event.Email == "" {
-		logger.Error("Email is empty")
 		return fmt.Errorf("email is empty")
 	}
-	email := os.Getenv("EMAIL")
-	mailPass := os.Getenv("MAIL_PASS")
-	if email == "" {
-		logger.Error("EMAIL environment variable is not set")
-		return fmt.Errorf("EMAIL environment variable is not set")
-	}
-	if mailPass == "" {
-		logger.Error("MAIL_PASS environment variable is not set")
-		return fmt.Errorf("MAIL_PASS environment variable is not set")
-	}
-	var emailMessage []byte
-	m := gomail.NewMessage()
-	m.SetHeader("From", email)
-	m.SetHeader("To", event.Email)
+
+	subject, body := s.formatEmailContent(event)
+
+	return s.emailSender.SendEmail(event.Email, subject, body)
+}
+
+func (s *NotificServer) formatEmailContent(event rabbit.TaskMessage) (subject, body string) {
 	switch event.Type {
 	case "Borrow":
-		m.SetHeader("Subject", "Book Borrowed Notification")
-		emailMessage = []byte(fmt.Sprintf("Dear %s,\n\nYou have successfully borrowed the book \"%s\" by %s. Please remember to return it by %s.\n\nHappy reading!\nLibrary Team",
-			event.UserName, event.BookTitle, event.BookAuthor, event.DueDate))
+		subject = "Book Borrowed Notification"
+		body = fmt.Sprintf(`
+			<html>
+			<body>
+			<h2>Book Borrowed Successfully!</h2>
+			<p>Dear %s,</p>
+			<p>You have successfully borrowed the book <strong>"%s"</strong> by %s.</p>
+			<p>Please remember to return it by <strong>%s</strong>.</p>
+			<p>Happy reading!</p>
+			<p>Library Team</p>
+			</body>
+			</html>
+		`, event.UserName, event.BookTitle, event.BookAuthor, event.DueDate)
 	case "Return":
-		m.SetHeader("Subject", "Book Return Confirmation")
-		emailMessage = []byte(fmt.Sprintf("Dear %s,\n\nThank you for returning the book \"%s\" by %s. We hope you enjoyed reading it!\n\nBest regards,\nLibrary Team",
-			event.UserName, event.BookTitle, event.BookAuthor))
+		subject = "Book Return Confirmation"
+		body = fmt.Sprintf(`
+			<html>
+			<body>
+			<h2>Book Returned Successfully!</h2>
+			<p>Dear %s,</p>
+			<p>Thank you for returning the book <strong>"%s"</strong> by %s.</p>
+			<p>We hope you enjoyed reading it!</p>
+			<p>Best regards,</p>
+			<p>Library Team</p>
+			</body>
+			</html>
+		`, event.UserName, event.BookTitle, event.BookAuthor)
 	default:
-		logger.Error("Unknown event type")
-		return fmt.Errorf("unknown event type")
+		subject = "Library Notification"
+		body = "<p>Unknown notification type</p>"
 	}
-	m.SetBody("text/html", string(emailMessage))
-	d := gomail.NewDialer("smtp.gmail.com", 465, email, mailPass)
-	d.SSL = true
+	return subject, body
+}
 
-	if err := d.DialAndSend(m); err != nil {
-		logger.Errorf("Sending error: %v\n", err)
-		return err
+func (s *NotificServer) initDependencies() error {
+	if s.emailSender == nil {
+		email := os.Getenv("EMAIL")
+		mailPass := os.Getenv("MAIL_PASS")
+
+		if email == "" || mailPass == "" {
+			return fmt.Errorf("EMAIL or MAIL_PASS environment variables not set")
+		}
+
+		s.emailSender = NewSMTPEmailSender("smtp.gmail.com", 465, email, mailPass)
 	}
 
-	logger.Info("Email sent successfully")
+	if s.messageConsumer == nil {
+		rabbitURL := os.Getenv("RABBIT_URL")
+		if rabbitURL == "" {
+			return fmt.Errorf("RABBIT_URL environment variable not set")
+		}
+
+		consumer, err := NewRabbitConsumer(rabbitURL, s.logger)
+		if err != nil {
+			return fmt.Errorf("failed to create rabbit consumer: %w", err)
+		}
+
+		s.messageConsumer = consumer
+	}
 
 	return nil
+}
+
+func (s *NotificServer) ValidateConfig() error {
+	requiredEnvVars := []string{"EMAIL", "MAIL_PASS", "RABBIT_URL"}
+
+	for _, envVar := range requiredEnvVars {
+		if os.Getenv(envVar) == "" {
+			return fmt.Errorf("%s environment variable is not set", envVar)
+		}
+	}
+
+	return nil
+}
+
+func (s *NotificServer) Shutdown() {
+	if s.messageConsumer != nil {
+		s.messageConsumer.Close()
+	}
 }

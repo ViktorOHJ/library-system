@@ -28,6 +28,31 @@ func NewBooksServer(db *pgxpool.Pool, logger *logrus.Logger) *BooksServer {
 func (s *BooksServer) CreateBook(parentCtx context.Context, req *pb.CreateBookRequest) (res *pb.BookResponse, err error) {
 	s.logger.Info("CreateBook called")
 
+	if req.Title == "" {
+		s.logger.Error("CreateBook called with empty title")
+		return nil, status.Error(codes.InvalidArgument, "title cannot be empty")
+	}
+	if len(req.Title) > 255 {
+		s.logger.Error("CreateBook called with too long title")
+		return nil, status.Error(codes.InvalidArgument, "title too long")
+	}
+	if req.Author == "" {
+		s.logger.Error("CreateBook called with empty author")
+		return nil, status.Error(codes.InvalidArgument, "author cannot be empty")
+	}
+	if len(req.Author) > 100 {
+		s.logger.Error("CreateBook called with too long author name")
+		return nil, status.Error(codes.InvalidArgument, "author name too long")
+	}
+	if req.Year < 0 || req.Year > int32(time.Now().Year()+10) {
+		s.logger.Error("CreateBook called with invalid year")
+		return nil, status.Error(codes.InvalidArgument, "invalid year")
+	}
+	if req == nil {
+		s.logger.Error("CreateBook called with nil request")
+		return nil, status.Error(codes.InvalidArgument, "request cannot be nil")
+	}
+
 	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	defer cancel()
 
