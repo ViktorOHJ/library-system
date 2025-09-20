@@ -72,6 +72,7 @@ func main() {
 
 	<-stop
 	logger.Info("Received shutdown signal, stopping server gracefully...")
+	loansServer.Shutdown()
 	server.GracefulStop()
 	logger.Info("Server stopped gracefully")
 }
